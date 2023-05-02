@@ -2,6 +2,8 @@
 #include <sstream>
 #include "../snugdb-main/surface.h"
 #include "../snugdb-main/file_utils.h"
+#include "../snugdb-main/task.h"
+#include "../snugdb-main/task_queue.h"
 
 const std::string RESET = "\033[0m";
 const std::string GREEN = "\033[32m";
@@ -46,9 +48,13 @@ void go_to_database(Surface& surface, const std::string& dbname, std::string& cu
 
 // Creation / Update functions
 
-void create_database(Surface& surface, const std::string& dbname) {
+void create_database(Surface& surface, TaskQueue& task_queue, const std::string& dbname) {
     surface.create_database(dbname);
     std::cout << "Created database: " << dbname << std::endl;
+
+    // Add a task to the task queue
+    Task create_db_task(Task::Operation::CreateDatabase, dbname);
+    task_queue.add_task(create_db_task);
 }
 
 
@@ -94,28 +100,37 @@ void handle_to_commands(Surface& surface, std::istringstream& iss, const std::st
         auto col = active_database->get_collection(colname);
         if (col) {
             auto entry = col->get_document(docname);
-            if (entry && cmd == "add") {
-                std::string value_str;
-                std::getline(iss, value_str);
-                std::istringstream value_stream(value_str);
-                if (value_type == "int") {
-                    int value;
-                    value_stream >> value;
-                    entry->set_value(key, value);
-                } else if (value_type == "double") {
-                    double value;
-                    value_stream >> value;
-                    entry->set_value(key, value);
-                } else if (value_type == "string") {
-                    std::string value;
-                    value_stream >> value;
-                    entry->set_value(key, value);
-                } else if (value_type == "bool") {
-                    bool value;
-                    value_stream >> std::boolalpha >> value;
-                    entry->set_value(key, value);
-                } else {
-                    std::cout << "Invalid value type: " << value_type << std::endl;
+            if (entry ) {
+                if (cmd == "add") {
+                    std::string value_str;
+                    std::getline(iss, value_str);
+                    std::istringstream value_stream(value_str);
+                    if (value_type == "int") {
+                        int value;
+                        value_stream >> value;
+                        entry->set_value(key, value);
+                    } else if (value_type == "double") {
+                        double value;
+                        value_stream >> value;
+                        entry->set_value(key, value);
+                    } else if (value_type == "string") {
+                        std::string value;
+                        value_stream >> value;
+                        entry->set_value(key, value);
+                    } else if (value_type == "bool") {
+                        bool value;
+                        value_stream >> std::boolalpha >> value;
+                        entry->set_value(key, value);
+                    } else {
+                        std::cout << "Invalid value type: " << value_type << std::endl;
+                    }
+                } else if (cmd == "remove") {
+                    bool removed = entry->remove_value(key);
+                    if (removed) {
+                        std::cout << "Removed: " << key << std::endl;
+                    } else {
+                        std::cout << "Could not remove: : " << key << std::endl;
+                    }
                 }
             } else {
                 std::cout << "Entry not found: " << docname << " in collection: " << colname << std::endl;
@@ -265,10 +280,15 @@ void initialize_data_storage(Surface& surface, const std::string& data_directory
 
 int main() {
     Surface surface;
+    TaskQueue task_queue;
     std::string input;
     std::string current_db;
     std::string data_directory = "snugdb_data";
+
     initialize_data_storage(surface, data_directory);
+
+    task_queue.start();
+
     std::cout << CYAN << "Welcome to SnugDB CLI." << RESET << " Type '" << MAGENTA << ".help" << RESET << "' for help." << std::endl;
 
     while (true) {
@@ -289,7 +309,7 @@ int main() {
         } else if (command == "create") {
             std::string dbname;
             iss >> dbname;
-            create_database(surface, dbname);
+            create_database(surface, task_queue, dbname);
         } else if (command == "gotodb") {
             std::string dbname;
             iss >> dbname;
@@ -326,6 +346,8 @@ int main() {
             show_document(surface, col_and_doc);
         }
     }
+
+    task_queue.stop();
 
     return 0;
 }
