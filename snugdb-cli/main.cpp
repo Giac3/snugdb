@@ -25,9 +25,12 @@ std::string get_help_text() {
     help_text << MAGENTA << "createcol <col_name>" << RESET << "    - Create a new collection with the given name in the current database" << std::endl;
     help_text << MAGENTA << "addto <col_name> doc <doc_name>" << RESET << " - Add a new document with the given name to the specified collection" << std::endl;
     help_text << MAGENTA << "to <col.doc> add <key> <value_type> <value>" << RESET << " - Add a key-value pair to the specified document" << std::endl;
+    help_text << MAGENTA << "Available value_types: " << RESET << " - bool, int, double, string, list, object" << std::endl;
+    help_text << MAGENTA << "to <col.doc> remove <key>" << RESET << " - Remove a key-value pair from the specified document" << std::endl;
     help_text << MAGENTA << "showdb" << RESET << "                  - Show the list of collections in the current database" << std::endl;
     help_text << MAGENTA << "showcol <col_name>" << RESET << "      - Show the list of documents in the specified collection" << std::endl;
     help_text << MAGENTA << "showdoc <col.doc>" << RESET << "       - Show the data in the specified document" << std::endl;
+    help_text << MAGENTA << "Available value_types: " << RESET << " - bool, int, double, string, list, object" << std::endl;
     help_text << MAGENTA << "exit" << RESET << "                    - Exit the CLI" << std::endl;
     help_text << YELLOW << "---------------------------------------------------------------------------------------------" << RESET << std::endl;
     return help_text.str();
