@@ -102,7 +102,7 @@ void add_document(Surface& surface,TaskQueue& task_queue, const std::string& col
 }
 
 
-void handle_to_commands(Surface& surface, std::istringstream& iss, const std::string& col_and_doc, const std::string& cmd, const std::string& key, const std::string& value_type) {
+void handle_to_commands(Surface& surface,TaskQueue& task_queue, std::istringstream& iss, const std::string& col_and_doc, const std::string& cmd, const std::string& key, const std::string& value_type) {
     size_t dot_pos = col_and_doc.find('.');
     if (dot_pos != std::string::npos) {
         std::string colname = col_and_doc.substr(0, dot_pos);
@@ -149,11 +149,16 @@ void handle_to_commands(Surface& surface, std::istringstream& iss, const std::st
                     if (valid_value_type) {
                         entry->set_value(key, value);
                         std::cout << "Added: (" << key << ") to document: (" << docname << ")" << std::endl;
+
+                        Task save_document_task(Task::Operation::SaveDocument, active_database_name, colname, docname, entry->get_data());
+                        task_queue.add_task(save_document_task);
                     }
                 } else if (cmd == "remove") {
                     bool removed = entry->remove_value(key);
                     if (removed) {
                         std::cout << "Removed: " << key << std::endl;
+                        Task save_document_task(Task::Operation::SaveDocument, active_database_name, colname, docname, entry->get_data());
+                        task_queue.add_task(save_document_task);
                     } else {
                         std::cout << "Could not remove: : " << key << std::endl;
                     }
@@ -273,8 +278,8 @@ void show_database(Surface& surface) {
     std::string active_database_name = surface.get_active_database();
     auto active_database = surface.get_database(active_database_name);
     if (active_database) {
-        std::cout << CYAN << "Collections in database: " << RESET <<  active_database_name << std::endl;
-        std::cout << active_database->show_collections();
+        std::cout << CYAN << "\nCollections in database: " << RESET <<  active_database_name << "\n" << std::endl;
+        std::cout << active_database->show_collections() << std::endl;
     } else {
         std::cout << "No active database. Use 'create' and 'gotodb' commands to create and select a database." << std::endl;
     }
@@ -348,6 +353,9 @@ int main() {
         
         if (command.empty()) {
             continue;
+        } else if (command == "showall") {
+            std::cout  << CYAN << "Your Databases: "  << RESET << std::endl;
+            std::cout << surface.show_databases();
         } else if (command == "exit") {
             std::cout << MAGENTA << "Bye Bye 👋" << RESET << std::endl;
             break;
@@ -376,7 +384,7 @@ int main() {
         } else if (command == "to") {
             std::string col_and_doc, cmd, key, value_type;
             iss >> col_and_doc >> cmd >> key >> value_type;
-            handle_to_commands(surface, iss, col_and_doc, cmd, key, value_type);
+            handle_to_commands(surface, task_queue, iss, col_and_doc, cmd, key, value_type);
         } else if (command == "dropdoc") {
             std::string col_and_doc;
             iss >> col_and_doc;
