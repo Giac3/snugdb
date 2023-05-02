@@ -77,6 +77,101 @@ void add_document(Surface& surface, const std::string& colname, const std::strin
     }
 }
 
+void show_database(Surface& surface) {
+    std::string active_database_name = surface.get_active_database();
+    auto active_database = surface.get_database(active_database_name);
+    if (active_database) {
+        std::cout << CYAN << "Collections in database: " << RESET <<  active_database_name << std::endl;
+        std::cout << active_database->show_collections();
+    } else {
+        std::cout << "No active database. Use 'create' and 'gotodb' commands to create and select a database." << std::endl;
+    }
+}
+
+void handle_to_commands(Surface& surface, std::istringstream& iss, const std::string& col_and_doc, const std::string& cmd, const std::string& key, const std::string& value_type) {
+    size_t dot_pos = col_and_doc.find('.');
+    if (dot_pos != std::string::npos) {
+        std::string colname = col_and_doc.substr(0, dot_pos);
+        std::string docname = col_and_doc.substr(dot_pos + 1);
+        std::string active_database_name = surface.get_active_database();
+        auto active_database = surface.get_database(active_database_name);
+        auto col = active_database->get_collection(colname);
+        auto entry = col->get_document(docname);
+        if (entry && cmd == "add") {
+            std::string value_str;
+            std::getline(iss, value_str);
+            std::istringstream value_stream(value_str);
+            if (value_type == "int") {
+                int value;
+                value_stream >> value;
+                entry->set_value(key, value);
+            } else if (value_type == "double") {
+                double value;
+                value_stream >> value;
+                entry->set_value(key, value);
+            } else if (value_type == "string") {
+                std::string value;
+                value_stream >> value;
+                entry->set_value(key, value);
+            } else if (value_type == "bool") {
+                bool value;
+                value_stream >> std::boolalpha >> value;
+                entry->set_value(key, value);
+            } else {
+                std::cout << "Invalid value type: " << value_type << std::endl;
+            }
+        } else {
+            std::cout << "Entry not found: " << docname << " in collection: " << colname << std::endl;
+        }
+    } else {
+        std::cout << "Invalid input format. Use 'collection.document' format." << std::endl;
+    }
+}
+
+void show_collection(Surface& surface, const std::string& colname) {
+    std::string active_database_name = surface.get_active_database();
+    auto active_database = surface.get_database(active_database_name);
+    if (active_database) {
+        auto col = active_database->get_collection(colname);
+        if (col) {
+            std::cout << "Documents in collection: " << colname << std::endl;
+            std::cout << col->show_documents();
+        } else {
+            std::cout << "Collection does not exist" << std::endl;
+        }
+    } else {
+        std::cout << "No active database. Use 'create' and 'gotodb' commands to create and select a database." << std::endl;
+    }
+}
+
+void show_document(Surface& surface, const std::string& col_and_doc) {
+    size_t dot_pos = col_and_doc.find('.');
+    if (dot_pos != std::string::npos) {
+        std::string colname = col_and_doc.substr(0, dot_pos);
+        std::string docname = col_and_doc.substr(dot_pos + 1);
+        std::string active_database_name = surface.get_active_database();
+        auto active_database = surface.get_database(active_database_name);
+        if (active_database) {
+            auto col = active_database->get_collection(colname);
+            if (col) {
+                auto doc = col->get_document(docname);
+                if(doc) {
+                    std::cout << "Data in document: " << docname << std::endl;
+                    std::cout << col->show_document(docname);
+                } else {
+                    std::cout << "Document does not exist" << std::endl;    
+                }
+            } else {
+                std::cout << "Collection does not exist" << std::endl;
+            }
+        } else {
+            std::cout << "No active database. Use 'create' and 'gotodb' commands to create and select a database." << std::endl;
+        }
+    } else {
+        std::cout << "Invalid input format. Use 'collection.document' format." << std::endl;
+    }
+}
+
 int main() {
     Surface surface;
     std::string input;
@@ -95,6 +190,7 @@ int main() {
         if (command.empty()) {
             continue;
         } else if (command == "exit") {
+            std::cout << MAGENTA << "Bye Bye 👋" << RESET << std::endl;
             break;
         } else if (command == ".help") {
             std::cout << get_help_text();
@@ -117,83 +213,17 @@ int main() {
             } else if (command == "to") {
             std::string col_and_doc, cmd, key, value_type;
             iss >> col_and_doc >> cmd >> key >> value_type;
-            size_t dot_pos = col_and_doc.find('.');
-            if (dot_pos != std::string::npos) {
-                std::string colname = col_and_doc.substr(0, dot_pos);
-                std::string docname = col_and_doc.substr(dot_pos + 1);
-                std::string active_database_name = surface.get_active_database();
-                auto active_database = surface.get_database(active_database_name);
-                auto col = active_database->get_collection(colname);
-                auto entry = col->get_document(docname);
-                if (entry && cmd == "add") {
-                    std::string value_str;
-                    std::getline(iss, value_str);
-                    std::istringstream value_stream(value_str);
-                    if (value_type == "int") {
-                        int value;
-                        value_stream >> value;
-                        entry->set_value(key, value);
-                    } else if (value_type == "double") {
-                        double value;
-                        value_stream >> value;
-                        entry->set_value(key, value);
-                    } else if (value_type == "string") {
-                        std::string value;
-                        value_stream >> value;
-                        entry->set_value(key, value);
-                    } else if (value_type == "bool") {
-                        bool value;
-                        value_stream >> std::boolalpha >> value;
-                        entry->set_value(key, value);
-                    } else {
-                        std::cout << "Invalid value type: " << value_type << std::endl;
-                    }
-                } else {
-                    std::cout << "Entry not found: " << docname << " in collection: " << colname << std::endl;
-                }
-            } else {
-                std::cout << "Invalid input format. Use 'collection.document' format." << std::endl;
-            }
+            handle_to_commands(surface, iss, col_and_doc, cmd, key, value_type);
         } else if (command == "showdb") {
-            std::string active_database_name = surface.get_active_database();
-            auto active_database = surface.get_database(active_database_name);
-            if (active_database) {
-                std::cout << "Collections in database: " << active_database_name << std::endl;
-                std::cout << active_database->show_collections();
-            } else {
-                std::cout << "No active database. Use 'create' and 'gotodb' commands to create and select a database." << std::endl;
-            }
+            show_database(surface);
         } else if (command == "showcol") {
             std::string colname;
             iss >> colname;
-            std::string active_database_name = surface.get_active_database();
-            auto active_database = surface.get_database(active_database_name);
-            if (active_database) {
-                auto col = active_database->get_collection(colname);
-                std::cout << "Documents in collection: " << colname << std::endl;
-                std::cout << col->show_documents();
-            } else {
-                std::cout << "No active database. Use 'create' and 'gotodb' commands to create and select a database." << std::endl;
-            }
+            show_collection(surface, colname);
         } else if (command == "showdoc") {
             std::string col_and_doc;
             iss >> col_and_doc;
-            size_t dot_pos = col_and_doc.find('.');
-            if (dot_pos != std::string::npos) {
-                std::string colname = col_and_doc.substr(0, dot_pos);
-                std::string docname = col_and_doc.substr(dot_pos + 1);
-                std::string active_database_name = surface.get_active_database();
-                auto active_database = surface.get_database(active_database_name);
-                if (active_database) {
-                    auto col = active_database->get_collection(colname);
-                    std::cout << "Data in document: " << docname << std::endl;
-                    std::cout << col->show_document(docname);
-                } else {
-                    std::cout << "No active database. Use 'create' and 'gotodb' commands to create and select a database." << std::endl;
-                }
-            } else {
-                std::cout << "Invalid input format. Use 'collection.document' format." << std::endl;
-            }
+            show_document(surface, col_and_doc);
         }
     }
 
