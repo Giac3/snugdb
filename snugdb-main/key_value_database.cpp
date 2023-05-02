@@ -56,3 +56,7 @@ std::string KeyValueDatabase::show_collections() const {
 
     return ss.str();
 }
+
+const std::map<std::string, std::shared_ptr<Collection>>& KeyValueDatabase::get_collections() const {
+    return collections_;
+}

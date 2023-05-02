@@ -9,7 +9,7 @@ include_directories(include)
 
 # Build snugdb-cli executable
 add_executable(snugdb-cli snugdb-cli/main.cpp)
-target_sources(snugdb-cli PRIVATE snugdb-main/key_value_database.cpp snugdb-main/collection.cpp snugdb-main/document.cpp snugdb-main/surface.cpp)
+target_sources(snugdb-cli PRIVATE snugdb-main/key_value_database.cpp snugdb-main/collection.cpp snugdb-main/document.cpp snugdb-main/surface.cpp snugdb-main/file_utils.cpp)
 
 # Build snugdb-tests executable and link it with the KeyValueDatabase implementation
 #add_executable(snugdb-tests snugdb-tests/tests.cpp)

@@ -12,6 +12,8 @@ public:
     std::shared_ptr<KeyValueDatabase> create_database(const std::string& name);
     std::shared_ptr<KeyValueDatabase> get_database(const std::string& name) const;
 
+    const std::map<std::string, std::shared_ptr<KeyValueDatabase>>& get_databases() const;
+
     std::string show_databases() const;
 
     void set_active_database(const std::string& name);

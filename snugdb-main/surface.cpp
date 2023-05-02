@@ -29,3 +29,7 @@ void Surface::set_active_database(const std::string& name) {
 std::string Surface::get_active_database() const {
     return active_database_;
 }
+
+const std::map<std::string, std::shared_ptr<KeyValueDatabase>>& Surface::get_databases() const {
+    return databases_;
+}

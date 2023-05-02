@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sstream>
 #include "../snugdb-main/surface.h"
+#include "../snugdb-main/file_utils.h"
 
 const std::string RESET = "\033[0m";
 const std::string GREEN = "\033[32m";
@@ -172,12 +173,35 @@ void show_document(Surface& surface, const std::string& col_and_doc) {
     }
 }
 
+void initialize_data_storage(Surface& surface, const std::string& data_directory) {
+    // Create the main data directory if it does not already exist
+    FileUtils::create_directory_if_not_exists(data_directory);
+
+    // Loop through the snugdb_data folder and add any subfolders as databases
+    for (const auto& db_entry : std::filesystem::directory_iterator(data_directory)) {
+        if (db_entry.is_directory()) {
+            std::string db_name = db_entry.path().filename().string();
+            auto db_object = surface.create_database(db_name);
+
+            // Loop through each database folder and add subfolders as collections
+            std::string db_path = data_directory + "/" + db_name;
+            for (const auto& coll_entry : std::filesystem::directory_iterator(db_path)) {
+                if (coll_entry.is_directory()) {
+                    std::string coll_name = coll_entry.path().filename().string();
+                    db_object->create_collection(coll_name);
+                }
+            }
+        }
+    }
+}
+
 int main() {
     Surface surface;
     std::string input;
     std::string current_db;
-
-        std::cout << CYAN << "Welcome to SnugDB CLI." << RESET << " Type '" << MAGENTA << ".help" << RESET << "' for help." << std::endl;
+    std::string data_directory = "snugdb_data";
+    initialize_data_storage(surface, data_directory);
+    std::cout << CYAN << "Welcome to SnugDB CLI." << RESET << " Type '" << MAGENTA << ".help" << RESET << "' for help." << std::endl;
 
     while (true) {
         //std::cout << current_db << "> ";

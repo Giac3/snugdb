@@ -12,6 +12,8 @@ public:
     std::shared_ptr<Collection> create_collection(const std::string& name);
     std::shared_ptr<Collection> get_collection(const std::string& name) const;
 
+    const std::map<std::string, std::shared_ptr<Collection>>& get_collections() const;
+
     std::string show_collections() const;
 
 private:
