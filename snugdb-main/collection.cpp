@@ -19,10 +19,19 @@ std::shared_ptr<Document> Collection::get_document(const std::string& name) cons
     return nullptr;
 }
 
+bool Collection::drop_document(const std::string& document_name) {
+    auto it = documents_.find(document_name);
+    if (it != documents_.end()) {
+        documents_.erase(it);
+        return true;
+    }
+    return false;
+}
+
 std::string Collection::show_documents() const {
     std::stringstream ss;
     if (documents_.empty()) {
-        ss << "No collections." << std::endl;
+        ss << "No documents." << std::endl;
         return ss.str();
     }
 

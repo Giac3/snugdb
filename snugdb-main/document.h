@@ -10,6 +10,8 @@ public:
     Document() = default;
 
     void set_value(const std::string& key, const std::variant<int, double, std::string, bool>& value);
+    bool remove_value(const std::string& key);
+
     std::string show_data() const;
 
 private:

@@ -19,6 +19,15 @@ std::shared_ptr<Collection> KeyValueDatabase::get_collection(const std::string& 
     return nullptr;
 }
 
+bool KeyValueDatabase::drop_collection(const std::string& collection_name) {
+    auto it = collections_.find(collection_name);
+    if (it != collections_.end()) {
+        collections_.erase(it);
+        return true;
+    }
+    return false;
+}
+
 std::string KeyValueDatabase::show_collections() const {
     std::stringstream ss;
     if (collections_.empty()) {

@@ -7,6 +7,15 @@ void Document::set_value(const std::string& key, const std::variant<int, double,
     data_[key] = value;
 }
 
+bool Document::remove_value(const std::string& key) {
+    auto it = data_.find(key);
+    if (it != data_.end()) {
+        data_.erase(it);
+        return true;
+    }
+    return false;
+}
+
 std::string Document::show_data() const {
     std::stringstream ss;
     if (data_.empty()) {

@@ -14,6 +14,7 @@ public:
 
     std::shared_ptr<Document> create_document(const std::string& name);
     std::shared_ptr<Document> get_document(const std::string& name) const;
+    bool drop_document(const std::string& document_name);
 
     std::string show_documents() const;
     std::string show_document(const std::string& docname) const;

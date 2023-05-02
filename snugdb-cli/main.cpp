@@ -29,10 +29,7 @@ std::string get_help_text() {
     return help_text.str();
 }
 
-void create_database(Surface& surface, const std::string& dbname) {
-    surface.create_database(dbname);
-    std::cout << "Created database: " << dbname << std::endl;
-}
+// navigation functions
 
 void go_to_database(Surface& surface, const std::string& dbname, std::string& current_db) {
     std::string current_active_database = surface.get_active_database();
@@ -46,6 +43,14 @@ void go_to_database(Surface& surface, const std::string& dbname, std::string& cu
         std::cout << "Database not found: " << dbname << std::endl;
     }
 }
+
+// Creation / Update functions
+
+void create_database(Surface& surface, const std::string& dbname) {
+    surface.create_database(dbname);
+    std::cout << "Created database: " << dbname << std::endl;
+}
+
 
 void create_collection(Surface& surface, const std::string& colname) {
     std::string active_database_name = surface.get_active_database();
@@ -78,16 +83,6 @@ void add_document(Surface& surface, const std::string& colname, const std::strin
     }
 }
 
-void show_database(Surface& surface) {
-    std::string active_database_name = surface.get_active_database();
-    auto active_database = surface.get_database(active_database_name);
-    if (active_database) {
-        std::cout << CYAN << "Collections in database: " << RESET <<  active_database_name << std::endl;
-        std::cout << active_database->show_collections();
-    } else {
-        std::cout << "No active database. Use 'create' and 'gotodb' commands to create and select a database." << std::endl;
-    }
-}
 
 void handle_to_commands(Surface& surface, std::istringstream& iss, const std::string& col_and_doc, const std::string& cmd, const std::string& key, const std::string& value_type) {
     size_t dot_pos = col_and_doc.find('.');
@@ -97,37 +92,97 @@ void handle_to_commands(Surface& surface, std::istringstream& iss, const std::st
         std::string active_database_name = surface.get_active_database();
         auto active_database = surface.get_database(active_database_name);
         auto col = active_database->get_collection(colname);
-        auto entry = col->get_document(docname);
-        if (entry && cmd == "add") {
-            std::string value_str;
-            std::getline(iss, value_str);
-            std::istringstream value_stream(value_str);
-            if (value_type == "int") {
-                int value;
-                value_stream >> value;
-                entry->set_value(key, value);
-            } else if (value_type == "double") {
-                double value;
-                value_stream >> value;
-                entry->set_value(key, value);
-            } else if (value_type == "string") {
-                std::string value;
-                value_stream >> value;
-                entry->set_value(key, value);
-            } else if (value_type == "bool") {
-                bool value;
-                value_stream >> std::boolalpha >> value;
-                entry->set_value(key, value);
+        if (col) {
+            auto entry = col->get_document(docname);
+            if (entry && cmd == "add") {
+                std::string value_str;
+                std::getline(iss, value_str);
+                std::istringstream value_stream(value_str);
+                if (value_type == "int") {
+                    int value;
+                    value_stream >> value;
+                    entry->set_value(key, value);
+                } else if (value_type == "double") {
+                    double value;
+                    value_stream >> value;
+                    entry->set_value(key, value);
+                } else if (value_type == "string") {
+                    std::string value;
+                    value_stream >> value;
+                    entry->set_value(key, value);
+                } else if (value_type == "bool") {
+                    bool value;
+                    value_stream >> std::boolalpha >> value;
+                    entry->set_value(key, value);
+                } else {
+                    std::cout << "Invalid value type: " << value_type << std::endl;
+                }
             } else {
-                std::cout << "Invalid value type: " << value_type << std::endl;
+                std::cout << "Entry not found: " << docname << " in collection: " << colname << std::endl;
             }
         } else {
-            std::cout << "Entry not found: " << docname << " in collection: " << colname << std::endl;
+            std::cout << "Collection not found: " << colname << std::endl;
         }
     } else {
         std::cout << "Invalid input format. Use 'collection.document' format." << std::endl;
     }
 }
+
+
+// Delete functions
+
+void drop_collection(Surface& surface, const std::string& colname) {
+    std::string active_database_name = surface.get_active_database();
+    auto active_database = surface.get_database(active_database_name);
+    if (active_database) {
+        auto col = active_database->get_collection(colname);
+        if (col) {
+            bool dropped  = active_database->drop_collection(colname);
+
+            if(dropped) {
+                std::cout << "Dropped collection: " << colname << std::endl;
+            } else {
+                std::cout << "Could not drop collection:" << colname << std::endl;
+            }
+        } else {
+            std::cout << "Collection does not exist" << std::endl;
+        }
+    } else {
+        std::cout << "No active database. Use 'create' and 'gotodb' commands to create and select a database." << std::endl;
+    }
+}
+
+void drop_document(Surface& surface, const std::string& col_and_doc) {
+    size_t dot_pos = col_and_doc.find('.');
+    if (dot_pos != std::string::npos) {
+        std::string colname = col_and_doc.substr(0, dot_pos);
+        std::string docname = col_and_doc.substr(dot_pos + 1);
+        std::string active_database_name = surface.get_active_database();
+        auto active_database = surface.get_database(active_database_name);
+        auto col = active_database->get_collection(colname);
+        if(col) {
+            auto entry = col->get_document(docname);
+            if(entry) {
+
+                bool dropped  = col->drop_document(docname);
+                if(dropped) {
+                    std::cout << "Dropped document: " << docname << std::endl;
+                } else {
+                    std::cout << "Could not drop document:" << docname << std::endl;
+                }
+
+            } else {
+                std::cout << "Document not found: " << docname << std::endl;    
+            }
+        } else {
+            std::cout << "Collection not found: " << colname << std::endl;    
+        }
+    } else {
+        std::cout << "Invalid input format. Use 'collection.document' format." << std::endl;
+    }
+}
+
+// General Read functions
 
 void show_collection(Surface& surface, const std::string& colname) {
     std::string active_database_name = surface.get_active_database();
@@ -172,6 +227,19 @@ void show_document(Surface& surface, const std::string& col_and_doc) {
         std::cout << "Invalid input format. Use 'collection.document' format." << std::endl;
     }
 }
+
+void show_database(Surface& surface) {
+    std::string active_database_name = surface.get_active_database();
+    auto active_database = surface.get_database(active_database_name);
+    if (active_database) {
+        std::cout << CYAN << "Collections in database: " << RESET <<  active_database_name << std::endl;
+        std::cout << active_database->show_collections();
+    } else {
+        std::cout << "No active database. Use 'create' and 'gotodb' commands to create and select a database." << std::endl;
+    }
+}
+
+// data persistance functions
 
 void initialize_data_storage(Surface& surface, const std::string& data_directory) {
     // Create the main data directory if it does not already exist
@@ -230,14 +298,22 @@ int main() {
             std::string colname;
             iss >> colname;
             create_collection(surface,colname);
+        } else if (command == "dropcol") {
+            std::string colname;
+            iss >> colname;
+            drop_collection(surface,colname);
         } else if (command == "addto") {
                 std::string colname, doc_type, docname;
                 iss >> colname >> doc_type >> docname;
                 add_document(surface, colname, doc_type, docname);
-            } else if (command == "to") {
+        } else if (command == "to") {
             std::string col_and_doc, cmd, key, value_type;
             iss >> col_and_doc >> cmd >> key >> value_type;
             handle_to_commands(surface, iss, col_and_doc, cmd, key, value_type);
+        } else if (command == "dropdoc") {
+            std::string col_and_doc;
+            iss >> col_and_doc;
+            drop_document(surface,col_and_doc);
         } else if (command == "showdb") {
             show_database(surface);
         } else if (command == "showcol") {
