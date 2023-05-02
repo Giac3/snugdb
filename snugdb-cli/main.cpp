@@ -4,6 +4,8 @@
 #include "../snugdb-main/file_utils.h"
 #include "../snugdb-main/task.h"
 #include "../snugdb-main/task_queue.h"
+#include "json.hpp"
+#include <fstream>
 
 const std::string RESET = "\033[0m";
 const std::string GREEN = "\033[32m";
@@ -58,26 +60,36 @@ void create_database(Surface& surface, TaskQueue& task_queue, const std::string&
 }
 
 
-void create_collection(Surface& surface, const std::string& colname) {
+void create_collection(Surface& surface, TaskQueue& task_queue, const std::string& colname) {
     std::string active_database_name = surface.get_active_database();
     auto active_database = surface.get_database(active_database_name);
     if (active_database) {
         active_database->create_collection(colname); 
         std::cout << "Created collection: " << colname << std::endl;
+
+        // Add a task to the task queue
+        Task create_col_task(Task::Operation::CreateCollection, active_database_name, colname);
+        task_queue.add_task(create_col_task);
     } else {
         std::cout << "No active database. Use 'create' and 'gotodb' commands to create and select a database." << std::endl;
     }
 }
 
-void add_document(Surface& surface, const std::string& colname, const std::string& doc_type, const std::string& docname) {
+void add_document(Surface& surface,TaskQueue& task_queue, const std::string& colname, const std::string& doc_type, const std::string& docname) {
     std::string active_database_name = surface.get_active_database();
     auto active_database = surface.get_database(active_database_name);
     if (active_database) {
         if (doc_type == "doc") {
             auto col = active_database->get_collection(colname);
             if (col) {
-                col->create_document(docname);
-                std::cout << "Added entry to " << colname << ": " << docname << std::endl;
+                if(col->get_document(docname)) {
+                    std::cout << "Document already exists" << std::endl;
+                } else {
+                    col->create_document(docname);
+                    std::cout << "Added document to " << colname << ": " << docname << std::endl;
+                    Task save_document_task(Task::Operation::SaveDocument, active_database_name, colname, docname, nlohmann::json::object());
+                    task_queue.add_task(save_document_task);
+                }
             } else {
                 std::cout << "Collection not found: " << colname << std::endl;
             }
@@ -101,28 +113,42 @@ void handle_to_commands(Surface& surface, std::istringstream& iss, const std::st
         if (col) {
             auto entry = col->get_document(docname);
             if (entry ) {
-                if (cmd == "add") {
-                    std::string value_str;
-                    std::getline(iss, value_str);
-                    std::istringstream value_stream(value_str);
+                 if (entry && cmd == "add") {
+                    nlohmann::json value;
+                    bool valid_value_type = true;
                     if (value_type == "int") {
-                        int value;
-                        value_stream >> value;
-                        entry->set_value(key, value);
+                        int int_value;
+                        iss >> int_value;
+                        value = int_value;
                     } else if (value_type == "double") {
-                        double value;
-                        value_stream >> value;
-                        entry->set_value(key, value);
+                        double double_value;
+                        iss >> double_value;
+                        value = double_value;
                     } else if (value_type == "string") {
-                        std::string value;
-                        value_stream >> value;
-                        entry->set_value(key, value);
+                        std::string string_value;
+                        std::getline(iss, string_value);
+                        value = string_value;
                     } else if (value_type == "bool") {
-                        bool value;
-                        value_stream >> std::boolalpha >> value;
-                        entry->set_value(key, value);
+                        std::string bool_value;
+                        iss >> bool_value;
+                        value = (bool_value == "true");
+                    } else if (value_type == "list" || value_type == "object") {
+                        std::string value_str;
+                        std::getline(iss, value_str);
+                        try {
+                            value = nlohmann::json::parse(value_str);
+                        } catch (const nlohmann::json::parse_error& e) {
+                            std::cout << "Invalid JSON format: " << value_str << std::endl;
+                            valid_value_type = false;
+                        }
                     } else {
                         std::cout << "Invalid value type: " << value_type << std::endl;
+                        valid_value_type = false;
+                    }
+                    
+                    if (valid_value_type) {
+                        entry->set_value(key, value);
+                        std::cout << "Added: (" << key << ") to document: (" << docname << ")" << std::endl;
                     }
                 } else if (cmd == "remove") {
                     bool removed = entry->remove_value(key);
@@ -271,7 +297,28 @@ void initialize_data_storage(Surface& surface, const std::string& data_directory
             for (const auto& coll_entry : std::filesystem::directory_iterator(db_path)) {
                 if (coll_entry.is_directory()) {
                     std::string coll_name = coll_entry.path().filename().string();
-                    db_object->create_collection(coll_name);
+                    auto coll_object = db_object->create_collection(coll_name);
+
+                    // Loop through each collection folder and add JSON files as documents
+                    std::string coll_path = db_path + "/" + coll_name;
+                    for (const auto& doc_entry : std::filesystem::directory_iterator(coll_path)) {
+                        if (doc_entry.is_regular_file()) {
+                            std::string doc_name = doc_entry.path().stem().string(); // Get the filename without extension
+                            std::string doc_path = coll_path + "/" + doc_entry.path().filename().string();
+
+                            // Read the JSON file and create a document with the data
+                            std::ifstream doc_file(doc_path);
+                            if (doc_file.is_open()) {
+                                nlohmann::json doc_data;
+                                doc_file >> doc_data;
+                                doc_file.close();
+
+                                // Create the document and set its data
+                                auto doc_object = coll_object->create_document(doc_name); // Pass the collection name instead of the document name
+                                doc_object->set_data(doc_data);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -317,7 +364,7 @@ int main() {
         } else if (command == "createcol") {
             std::string colname;
             iss >> colname;
-            create_collection(surface,colname);
+            create_collection(surface, task_queue,colname);
         } else if (command == "dropcol") {
             std::string colname;
             iss >> colname;
@@ -325,7 +372,7 @@ int main() {
         } else if (command == "addto") {
                 std::string colname, doc_type, docname;
                 iss >> colname >> doc_type >> docname;
-                add_document(surface, colname, doc_type, docname);
+                add_document(surface, task_queue, colname, doc_type, docname);
         } else if (command == "to") {
             std::string col_and_doc, cmd, key, value_type;
             iss >> col_and_doc >> cmd >> key >> value_type;

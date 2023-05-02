@@ -3,7 +3,7 @@ const std::string YELLOW = "\033[33m";
 const std::string BLUE = "\033[34m";
 const std::string RESET = "\033[0m";
 
-void Document::set_value(const std::string& key, const std::variant<int, double, std::string, bool>& value) {
+void Document::set_value(const std::string& key, const nlohmann::json& value) {
     data_[key] = value;
 }
 
@@ -16,6 +16,7 @@ bool Document::remove_value(const std::string& key) {
     return false;
 }
 
+
 std::string Document::show_data() const {
     std::stringstream ss;
     if (data_.empty()) {
@@ -26,10 +27,7 @@ std::string Document::show_data() const {
     size_t max_length = 0;
     for (const auto& [key, value] : data_) {
         std::stringstream temp_ss;
-        temp_ss << key << ": ";
-        std::visit([&](const auto& v) {
-            temp_ss << std::boolalpha << v;
-        }, value);
+        temp_ss << key << ": " << value;
         max_length = std::max(max_length, temp_ss.str().length());
     }
 
@@ -43,10 +41,7 @@ std::string Document::show_data() const {
     // Print items
     for (const auto& [key, value] : data_) {
         std::stringstream temp_ss;
-        temp_ss << key << ": ";
-        std::visit([&](const auto& v) {
-            temp_ss << std::boolalpha << v;
-        }, value);
+        temp_ss << key << ": " << value;
 
         ss << YELLOW << "|" << RESET << BLUE << ' ' << temp_ss.str();
         for (size_t i = 0; i < max_length - temp_ss.str().length(); ++i) {
