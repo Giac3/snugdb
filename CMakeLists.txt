@@ -21,5 +21,5 @@ target_sources(snugdb-cli PRIVATE snugdb-main/key_value_database.cpp snugdb-main
 add_executable(test_all snugdb-tests/test_all.cpp)
 target_sources(test_all PRIVATE snugdb-main/collection.cpp snugdb-main/document.cpp snugdb-main/surface.cpp snugdb-main/key_value_database.cpp)
 
-add_executable(snugdb-http snugdb-http/main.cpp)
-target_sources(snugdb-http PRIVATE snugdb-main/key_value_database.cpp snugdb-main/collection.cpp snugdb-main/document.cpp snugdb-main/surface.cpp snugdb-main/file_utils.cpp snugdb-main/task_queue.cpp)
+add_executable(snugdb-server snugdb-server/main.cpp)
+target_sources(snugdb-server PRIVATE snugdb-main/key_value_database.cpp snugdb-main/collection.cpp snugdb-main/document.cpp snugdb-main/surface.cpp snugdb-main/file_utils.cpp snugdb-main/task_queue.cpp)
