@@ -1,6 +1,8 @@
 #include "crow_all.h"
 #include <iostream>
 #include <sstream>
+#include <filesystem>
+#include <cstdlib>
 #include "../snugdb-main/surface.h"
 #include "../snugdb-main/file_utils.h"
 #include "../snugdb-main/task.h"
@@ -134,12 +136,26 @@ void initialize_data_storage(Surface& surface, const std::string& data_directory
     }
 }
 
+std::string get_snugdb_data_path() {
+    std::string home_dir = std::getenv("HOME");
+
+    if (home_dir.empty()) {
+        home_dir = std::getenv("USERPROFILE");
+    }
+
+    std::filesystem::path snugdb_data_path = home_dir;
+    snugdb_data_path /= "snugdb_data";
+
+    return snugdb_data_path.string();
+}
+
+
 int main() {
     Surface surface;
     TaskQueue task_queue;
     std::string input;
     std::string current_db;
-    std::string data_directory = "snugdb_data";
+    std::string data_directory = get_snugdb_data_path();
 
     initialize_data_storage(surface, data_directory);
     
