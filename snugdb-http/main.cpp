@@ -2,35 +2,94 @@
 #include <iostream>
 #include <sstream>
 #include "../snugdb-main/surface.h"
+#include "../snugdb-main/file_utils.h"
+#include "../snugdb-main/task.h"
+#include "../snugdb-main/task_queue.h"
+#include "json.hpp"
+#include <fstream>
 
-/*
-void start_http_server(KeyValueDatabase& db) {
+void start_http_server(Surface& surface, TaskQueue& task_queue) {
     crow::SimpleApp app;
+    app.loglevel(crow::LogLevel::Warning);
 
-    app.route_dynamic("/collections/<string>/documents")
+    app.route_dynamic("/databases/<string>/collections/<string>/documents/<string>")
         .methods("POST"_method)
-        ([&db](const crow::request& req, std::string collection_name) {
-            auto json = crow::json::load(req.body);
-
-            if (!json) {
+        ([&surface, &task_queue](const crow::request& req, std::string database_name, std::string collection_name, std::string document_name) {
+            std::string json_string = req.body;
+            if (json_string.empty()) {
                 return crow::response(400, "Invalid JSON");
             }
 
-            auto col = db.get_collection(collection_name);
-            if (!col) {
-                col = db.create_collection(collection_name);
+            auto db = surface.get_database(database_name);
+            if (!db) {
+                return crow::response(404, "Database not found");
             }
 
-            std::string document_name = json["name"].s();
-            auto doc = col->create_document(document_name);
-            doc->set_data(json["data"]);
+            auto col = db->get_collection(collection_name);
+            if (!col) {
+                col = db->create_collection(collection_name);
+            }
 
-            return crow::response(201, "Document created");
+            auto doc = col->get_document(document_name);
+            if (!doc) {
+                doc = col->create_document(document_name);
+            }
+            nlohmann::json nlohmann_json = nlohmann::json::parse(json_string);
+            doc->set_data(nlohmann_json);
+
+            Task save_document_task(Task::Operation::SaveDocument, database_name, collection_name, document_name, nlohmann_json);
+            task_queue.add_task(save_document_task);
+            
+            crow::json::wvalue response_json;
+            response_json["status"] = "success";
+            response_json["message"] = "Document created";
+
+            return crow::response(201, response_json);
+
+    });
+
+    app.route_dynamic("/databases/<string>/collections/<string>/documents/<string>")
+        .methods("GET"_method)
+        ([&surface](const crow::request& req, std::string database_name, std::string collection_name, std::string document_name) {
+            crow::json::wvalue response_json;
+            auto db = surface.get_database(database_name);
+            if (!db) {
+                response_json["status"] = "failure";
+                response_json["message"] = "Could not find database";
+
+                return crow::response(404, response_json);
+            }
+
+            auto col = db->get_collection(collection_name);
+            if (!col) {
+                response_json["status"] = "failure";
+                response_json["message"] = "Could not find collection";
+
+                return crow::response(404, response_json);
+            }
+
+            auto doc = col->get_document(document_name);
+            if (!doc) {
+                response_json["status"] = "failure";
+                response_json["message"] = "Could not find document";
+
+                return crow::response(404, response_json);
+            }
+            
+            nlohmann::json nlohmann_data = doc->get_data();
+            std::string nlohmann_data_str = nlohmann_data.dump();
+            crow::json::rvalue crow_data = crow::json::load(nlohmann_data_str);
+            response_json["status"] = "success";
+            response_json["data"] = crow_data;
+
+            return crow::response(201, response_json);
+
     });
 
     app.port(3030).multithreaded().run();
 }
-*/
+
+// Initialize database from stored files/folders
 
 void initialize_data_storage(Surface& surface, const std::string& data_directory) {
     // Create the main data directory if it does not already exist
@@ -77,8 +136,16 @@ void initialize_data_storage(Surface& surface, const std::string& data_directory
 
 int main() {
     Surface surface;
+    TaskQueue task_queue;
+    std::string input;
+    std::string current_db;
     std::string data_directory = "snugdb_data";
+
     initialize_data_storage(surface, data_directory);
     
+    task_queue.start();
+    start_http_server(surface, task_queue);
+    
+    task_queue.stop();
     return 0;
 }
