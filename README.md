@@ -20,7 +20,7 @@ Welcome to **SnugDB**! A fun, simple, and local document database for all your d
    brew install snugdb
    ```
 
-2. Run snudb cli:
+2. Run snugdb cli:
 
    ```
    snugdb-cli
