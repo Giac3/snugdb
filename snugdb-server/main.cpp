@@ -88,6 +88,25 @@ void start_http_server(Surface& surface, TaskQueue& task_queue, const std::strin
 
     });
 
+    app.route_dynamic("/databases/<string>/ping")
+        .methods("GET"_method)
+        ([&surface](const crow::request& req, std::string database_name) {
+            crow::json::wvalue response_json;
+            auto db = surface.get_database(database_name);
+            if (!db) {
+                response_json["status"] = "failure";
+                response_json["message"] = "Could not find database";
+
+                return crow::response(404, response_json);
+            }
+            
+            response_json["status"] = "success";
+            response_json["message"] = "connection success";
+
+            return crow::response(201, response_json);
+
+    });
+
     app.bindaddr(host).port(port).multithreaded().run();
 }
 
