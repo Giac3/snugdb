@@ -10,7 +10,7 @@
 #include "json.hpp"
 #include <fstream>
 
-void start_http_server(Surface& surface, TaskQueue& task_queue) {
+void start_http_server(Surface& surface, TaskQueue& task_queue, const std::string& host, int port) {
     crow::SimpleApp app;
     app.loglevel(crow::LogLevel::Warning);
 
@@ -88,7 +88,7 @@ void start_http_server(Surface& surface, TaskQueue& task_queue) {
 
     });
 
-    app.port(3030).multithreaded().run();
+    app.bindaddr(host).port(port).multithreaded().run();
 }
 
 // Initialize database from stored files/folders
@@ -150,17 +150,34 @@ std::string get_snugdb_data_path() {
 }
 
 
-int main() {
+int main(int argc, char* argv[]) {
     Surface surface;
     TaskQueue task_queue;
     std::string input;
     std::string current_db;
     std::string data_directory = get_snugdb_data_path();
 
+    std::string host = "127.0.0.1";
+    int port = 3030;
+
+    for (int i = 1; i < argc; i++) {
+        if (std::string(argv[i]) == "--host" && i + 1 < argc) {
+            host = std::string(argv[++i]);
+            if (host == "localhost") {
+                host = "127.0.0.1"; 
+            }
+        } else if (std::string(argv[i]) == "--port" && i + 1 < argc) {
+            port = std::stoi(std::string(argv[++i]));
+        } else {
+            std::cerr << "Invalid command-line arguments\n";
+            return 1;
+        }
+    }
+
     initialize_data_storage(surface, data_directory);
     
     task_queue.start();
-    start_http_server(surface, task_queue);
+    start_http_server(surface, task_queue, host, port);
     
     task_queue.stop();
     return 0;
